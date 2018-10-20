@@ -41,7 +41,7 @@ hash_t* hash_crear(hash_destruir_dato_t destruir_dato) {
 	hash->tabla = tabla;
 	hash->cantidad = 0;
 	hash->largo = LARGO_INICIAL;
-	hash->carga = 0;
+	hash->carga = 0; //TODO, encontrar el funcionamiento del factor carga
 	hash->destruir_dato = destruir_dato;
 	return hash;
 }
