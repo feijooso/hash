@@ -101,16 +101,6 @@ bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 	return true;
 }
 
-/* Borra un elemento del hash y devuelve el dato asociado.  Devuelve
- * NULL si el dato no estaba.
- * Pre: La estructura hash fue inicializada
- * Post: El elemento fue borrado de la estructura y se lo devolvió,
- * en el caso de que estuviera guardado.
- */
-void* hash_borrar(hash_t* hash, const char* clave) {
-	return NULL;
-}
-
 void hasheando_por_hay(size_t* posicion, const hash_t* hash, const char* clave) {
 	while(hash->tabla[*posicion]->estado != libre && hash->tabla[*posicion]->clave != clave && *posicion < hash->largo) {
 		*posicion += 1;
@@ -133,6 +123,23 @@ bool hash_pertenece(const hash_t* hash, const char* clave) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hasheando_por_hay(&posicion, hash, clave);
 	return hash->tabla[posicion]->clave == clave;
+}
+
+/* Borra un elemento del hash y devuelve el dato asociado.  Devuelve
+ * NULL si el dato no estaba.
+ * Pre: La estructura hash fue inicializada
+ * Post: El elemento fue borrado de la estructura y se lo devolvió,
+ * en el caso de que estuviera guardado.
+ */
+void* hash_borrar(hash_t* hash, const char* clave) {
+	size_t posicion = funcion_hash(clave, hash->largo);
+	hasheando_por_hay(&posicion, hash, clave);
+	void* valor = hash->tabla[posicion]->valor;
+	if(valor != NULL){
+		hash->tabla[posicion]->estado = borrado;
+		hash->cantidad--;
+	} 
+	return valor;
 }
 
 /* Devuelve la cantidad de elementos del hash.
