@@ -1,5 +1,5 @@
 EXEC = hash
-OBJ_FILES = *.c
+OBJ_FILES = hash.c main.c testing.c pruebas_catedra.c
 C_FLAGS = -std=c99 -Wall -Wconversion -Wno-sign-conversion -Werror
 
 all:
