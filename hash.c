@@ -118,14 +118,15 @@ bool redimencionar(hash_t* hash) {
 bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hash_campo_t** tabla = hash->tabla;
-	while(tabla[posicion]->estado != libre && posicion < hash->largo) {
+	while(tabla[posicion]->clave != clave && tabla[posicion]->estado != libre && posicion < hash->largo) {
 		posicion++;
 	}
-
-	hash->cantidad++;
-	if(necesita_remidencionar(hash) && !redimencionar(hash)) {
-		hash->cantidad--;
-		return false;	
+	if(tabla[posicion]->clave != clave) {
+		hash->cantidad++;
+		if(necesita_remidencionar(hash) && !redimencionar(hash)) {
+			hash->cantidad--;
+			return false;	
+		}
 	}
 	hash_campo_t* campo = tabla[posicion];
 	campo->clave = clave;
@@ -146,7 +147,8 @@ void hasheando_por_hay(size_t* posicion, const hash_t* hash, const char* clave) 
 void* hash_obtener(const hash_t* hash, const char* clave) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hasheando_por_hay(&posicion, hash, clave);
-	if(hash->tabla[posicion]->clave != clave) return NULL;
+	hash_campo_t* campo = hash->tabla[posicion];
+	if(campo->estado == borrado || campo->clave != clave) return NULL;
 	return hash->tabla[posicion]->valor;
 }
 
@@ -155,7 +157,9 @@ void* hash_obtener(const hash_t* hash, const char* clave) {
 bool hash_pertenece(const hash_t* hash, const char* clave) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hasheando_por_hay(&posicion, hash, clave);
-	return hash->tabla[posicion]->clave == clave;
+	hash_campo_t* campo = hash->tabla[posicion];
+	if(campo->estado == borrado) return false;
+	return campo->clave == clave;
 }
 
 /* Borra un elemento del hash y devuelve el dato asociado.  Devuelve
@@ -167,9 +171,11 @@ bool hash_pertenece(const hash_t* hash, const char* clave) {
 void* hash_borrar(hash_t* hash, const char* clave) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hasheando_por_hay(&posicion, hash, clave);
-	void* valor = hash->tabla[posicion]->valor;
+	hash_campo_t* campo = hash->tabla[posicion];
+	if(campo->estado == borrado) return NULL;
+	void* valor = campo->valor;
 	if(valor != NULL){
-		hash->tabla[posicion]->estado = borrado;
+		campo->estado = borrado;
 		hash->cantidad--;
 	} 
 	return valor;
