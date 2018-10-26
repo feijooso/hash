@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #define LARGO_INICIAL 5
+#define CARGA 50
 
 typedef void (*hash_destruir_dato_t)(void *);
 
@@ -55,8 +56,8 @@ hash_campo_t* campo_crear() {
 	return campo;
 }
 
-bool rellenar_tabla(hash_t* hash, int inicio) {
-	for(int i=inicio; i<hash->largo; i++) {
+bool rellenar_tabla(hash_t* hash, size_t inicio) {
+	for(size_t i=inicio; i<hash->largo; i++) {
 		hash_campo_t* campo = campo_crear();
 		if(campo == NULL) {
 			hash_destruir(hash);
@@ -77,10 +78,37 @@ hash_t* hash_crear(hash_destruir_dato_t destruir_dato) {
 	hash->tabla = tabla;
 	hash->cantidad = 0;
 	hash->largo = LARGO_INICIAL;
-	hash->carga = 0;
+	hash->carga = CARGA;
 	if(!rellenar_tabla(hash, 0)) return NULL;
 	hash->destruir_dato = destruir_dato;
 	return hash;
+}
+
+size_t numero_elementos_no_libres(hash_t* hash) {
+	size_t contador = 0;
+	hash_campo_t** tabla = hash->tabla;
+	for(int i=0; i< hash->largo; i++) {
+		if(tabla[i]->estado != libre) contador++;
+	}
+	return contador;
+}
+
+bool necesita_remidencionar(hash_t* hash) {
+	return hash->carga <= (numero_elementos_no_libres(hash) / hash->largo);
+}
+
+bool redimencionar(hash_t* hash) {
+	size_t nuevo_largo = hash->largo * 2;
+	hash_campo_t** nueva_tabla = realloc(hash->tabla, nuevo_largo*(sizeof(hash_campo_t*)));
+	if(nueva_tabla == NULL) return false;
+	hash->tabla = nueva_tabla;
+	size_t viejo_largo = hash->largo; 
+	hash->largo = nuevo_largo;
+	if(!rellenar_tabla(hash, viejo_largo)) {
+		hash->largo = viejo_largo;
+		return false;
+	}
+	return true;
 }
 
 /* Guarda un elemento en el hash, si la clave ya se encuentra en la
@@ -93,11 +121,16 @@ bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 	while(tabla[posicion]->estado != libre && posicion < hash->largo) {
 		posicion++;
 	}
+
+	hash->cantidad++;
+	if(necesita_remidencionar(hash) && !redimencionar(hash)) {
+		hash->cantidad--;
+		return false;	
+	}
 	hash_campo_t* campo = tabla[posicion];
 	campo->clave = clave;
 	campo->valor = dato;
 	campo->estado = ocupado;
-	hash->cantidad++;
 	return true;
 }
 
