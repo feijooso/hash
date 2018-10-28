@@ -37,6 +37,13 @@ typedef struct hash_iter {	//no estoy seguro si estos son los atributos del iter
  * Pre: La estructura hash fue inicializada
  * Post: La estructura hash fue destruida*/
 void hash_destruir(hash_t* hash) {
+	for(int i=0; i<hash->largo; i++) {
+		hash_campo_t* campo = hash->tabla[i];
+		if(hash->destruir_dato != NULL && campo->estado != libre) {
+			hash->destruir_dato(campo->valor);
+		}
+		free(campo);
+	}
 	free(hash->tabla);
 	free(hash);
 }
@@ -122,22 +129,23 @@ bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 		posicion++;
 	}
 	if(posicion == hash->largo && !redimensionar(hash)) return false;
-	if(hash->tabla[posicion]->clave != clave) {
+	hash_campo_t* campo = hash->tabla[posicion];
+	if(campo->clave != clave) {
 		hash->cantidad++;
 		if(necesita_redimencionar(hash) && !redimensionar(hash)) {
 			hash->cantidad--;
 			return false;	
 		}
+		campo->clave = clave;
 	}
-	hash_campo_t* campo = hash->tabla[posicion];
-	campo->clave = clave;
+	if(hash->destruir_dato != NULL && campo->valor != NULL) hash->destruir_dato(campo->valor);
 	campo->valor = dato;
 	campo->estado = ocupado;
 	return true;
 }
 
 void hasheando_por_hay(size_t* posicion, const hash_t* hash, const char* clave) {
-	while(hash->tabla[*posicion]->estado != libre && hash->tabla[*posicion]->clave != clave && *posicion < hash->largo) {
+	while(*posicion < hash->largo && hash->tabla[*posicion]->estado != libre && hash->tabla[*posicion]->clave != clave) {
 		*posicion += 1;
 	}
 }
