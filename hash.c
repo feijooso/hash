@@ -173,12 +173,9 @@ void* hash_borrar(hash_t* hash, const char* clave) {
 	hasheando_por_hay(&posicion, hash, clave);
 	hash_campo_t* campo = hash->tabla[posicion];
 	if(campo->estado == borrado) return NULL;
-	void* valor = campo->valor;
-	if(valor != NULL){
-		campo->estado = borrado;
-		hash->cantidad--;
-	} 
-	return valor;
+	campo->estado = borrado;
+	hash->cantidad--;
+	return campo->valor;
 }
 
 /* Devuelve la cantidad de elementos del hash.
