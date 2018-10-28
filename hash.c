@@ -93,11 +93,11 @@ size_t numero_elementos_no_libres(hash_t* hash) {
 	return contador;
 }
 
-bool necesita_remidencionar(hash_t* hash) {
+bool necesita_redimencionar(hash_t* hash) {
 	return hash->carga <= (numero_elementos_no_libres(hash) / hash->largo);
 }
 
-bool redimencionar(hash_t* hash) {
+bool redimensionar(hash_t* hash) {
 	size_t nuevo_largo = hash->largo * 2;
 	hash_campo_t** nueva_tabla = realloc(hash->tabla, nuevo_largo*(sizeof(hash_campo_t*)));
 	if(nueva_tabla == NULL) return false;
@@ -118,17 +118,18 @@ bool redimencionar(hash_t* hash) {
 bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hash_campo_t** tabla = hash->tabla;
-	while(tabla[posicion]->clave != clave && tabla[posicion]->estado != libre && posicion < hash->largo) {
+	while(posicion < hash->largo && tabla[posicion]->clave != clave && tabla[posicion]->estado != libre) {
 		posicion++;
 	}
-	if(tabla[posicion]->clave != clave) {
+	if(posicion == hash->largo && !redimensionar(hash)) return false;
+	if(hash->tabla[posicion]->clave != clave) {
 		hash->cantidad++;
-		if(necesita_remidencionar(hash) && !redimencionar(hash)) {
+		if(necesita_redimencionar(hash) && !redimensionar(hash)) {
 			hash->cantidad--;
 			return false;	
 		}
 	}
-	hash_campo_t* campo = tabla[posicion];
+	hash_campo_t* campo = hash->tabla[posicion];
 	campo->clave = clave;
 	campo->valor = dato;
 	campo->estado = ocupado;
