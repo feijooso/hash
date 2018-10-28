@@ -37,6 +37,13 @@ typedef struct hash_iter {	//no estoy seguro si estos son los atributos del iter
  * Pre: La estructura hash fue inicializada
  * Post: La estructura hash fue destruida*/
 void hash_destruir(hash_t* hash) {
+	for(int i=0; i<hash->largo; i++) {
+		hash_campo_t* campo = hash->tabla[i];
+		if(hash->destruir_dato != NULL && campo->estado != libre) {
+			hash->destruir_dato(campo->valor);
+		}
+		free(campo);
+	}
 	free(hash->tabla);
 	free(hash);
 }
@@ -93,11 +100,11 @@ size_t numero_elementos_no_libres(hash_t* hash) {
 	return contador;
 }
 
-bool necesita_remidencionar(hash_t* hash) {
+bool necesita_redimencionar(hash_t* hash) {
 	return hash->carga <= (numero_elementos_no_libres(hash) / hash->largo);
 }
 
-bool redimencionar(hash_t* hash) {
+bool redimensionar(hash_t* hash) {
 	size_t nuevo_largo = hash->largo * 2;
 	hash_campo_t** nueva_tabla = realloc(hash->tabla, nuevo_largo*(sizeof(hash_campo_t*)));
 	if(nueva_tabla == NULL) return false;
@@ -118,25 +125,27 @@ bool redimencionar(hash_t* hash) {
 bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hash_campo_t** tabla = hash->tabla;
-	while(tabla[posicion]->clave != clave && tabla[posicion]->estado != libre && posicion < hash->largo) {
+	while(posicion < hash->largo && tabla[posicion]->clave != clave && tabla[posicion]->estado != libre) {
 		posicion++;
 	}
-	if(tabla[posicion]->clave != clave) {
+	if(posicion == hash->largo && !redimensionar(hash)) return false;
+	hash_campo_t* campo = hash->tabla[posicion];
+	if(campo->clave != clave) {
 		hash->cantidad++;
-		if(necesita_remidencionar(hash) && !redimencionar(hash)) {
+		if(necesita_redimencionar(hash) && !redimensionar(hash)) {
 			hash->cantidad--;
 			return false;	
 		}
+		campo->clave = clave;
 	}
-	hash_campo_t* campo = tabla[posicion];
-	campo->clave = clave;
+	if(hash->destruir_dato != NULL && campo->valor != NULL) hash->destruir_dato(campo->valor);
 	campo->valor = dato;
 	campo->estado = ocupado;
 	return true;
 }
 
 void hasheando_por_hay(size_t* posicion, const hash_t* hash, const char* clave) {
-	while(hash->tabla[*posicion]->estado != libre && hash->tabla[*posicion]->clave != clave && *posicion < hash->largo) {
+	while(*posicion < hash->largo && hash->tabla[*posicion]->estado != libre && hash->tabla[*posicion]->clave != clave) {
 		*posicion += 1;
 	}
 }
@@ -173,12 +182,9 @@ void* hash_borrar(hash_t* hash, const char* clave) {
 	hasheando_por_hay(&posicion, hash, clave);
 	hash_campo_t* campo = hash->tabla[posicion];
 	if(campo->estado == borrado) return NULL;
-	void* valor = campo->valor;
-	if(valor != NULL){
-		campo->estado = borrado;
-		hash->cantidad--;
-	} 
-	return valor;
+	campo->estado = borrado;
+	hash->cantidad--;
+	return campo->valor;
 }
 
 /* Devuelve la cantidad de elementos del hash.
