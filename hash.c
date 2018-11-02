@@ -28,7 +28,7 @@ typedef struct hash {
 } hash_t;
 
 typedef struct hash_iter {	//no estoy seguro si estos son los atributos del iterador.
-	hash_t* hash;
+	const hash_t* hash;
 	size_t posicion;
 } hash_iter_t;
 
@@ -219,30 +219,43 @@ size_t hash_cantidad(const hash_t* hash) {
 	return hash->cantidad;
 }
 
-
 /* Iterador del hash */
+
+// Comprueba si terminó la iteración
+bool hash_iter_al_final(const hash_iter_t* iter) { 
+	return iter->posicion == iter->hash->largo;
+}
+
+void iterando_por_hay(hash_iter_t* iter) {
+	while(!hash_iter_al_final(iter) && iter->hash->tabla[iter->posicion]->estado != ocupado) {
+		iter->posicion++;
+	}
+}
 
 // Crea iterador
 hash_iter_t* hash_iter_crear(const hash_t* hash) {
-	return NULL;
+	hash_iter_t* iterador = malloc(sizeof(hash_iter_t));
+	if(iterador == NULL) return NULL;
+	iterador->hash = hash;
+	iterador->posicion = 0;
+	iterando_por_hay(iterador);
+	return iterador;
 }
 
 // Avanza iterador
 bool hash_iter_avanzar(hash_iter_t* iter) {
-	return false;
+	if(hash_iter_al_final(iter)) return false;
+	iterando_por_hay(iter);
+	return true;
 }
 
 // Devuelve clave actual, esa clave no se puede modificar ni liberar.
 const char* hash_iter_ver_actual(const hash_iter_t* iter) {
-	return NULL;
-}
-
-// Comprueba si terminó la iteración
-bool hash_iter_al_final(const hash_iter_t* iter) { 
-	return false;
+	if(hash_iter_al_final(iter)) return NULL;
+	return iter->hash->tabla[iter->posicion]->clave;
 }
 
 // Destruye iterador
 void hash_iter_destruir(hash_iter_t* iter) {
-
+	free(iter);
 }
