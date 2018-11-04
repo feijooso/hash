@@ -18,4 +18,4 @@ debug:	all
 	gdb ./$(EXEC) -tui
 
 zip: 
-	zip -r $(EXEC) . -x "*.zip"
+	zip -r $(EXEC) hash.c hash.h testing.c testing.h -x "*.zip"

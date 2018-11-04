@@ -48,11 +48,8 @@ void hash_destruir(hash_t *hash);
 void hash_destruir(hash_t* hash) {
 	for(int i=0; i<hash->largo; i++) {
 		hash_campo_t* campo = hash->tabla[i];
-		if(campo->estado != libre) {
-			if(hash->destruir_dato != NULL) 
-				hash->destruir_dato(campo->valor);
-			free(campo->clave);
-		}
+		if(hash->destruir_dato != NULL) hash->destruir_dato(campo->valor);
+		if(campo->estado != libre) free(campo->clave);
 		free(campo);
 	}
 	free(hash->tabla);
