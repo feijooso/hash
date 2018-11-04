@@ -122,7 +122,7 @@ size_t numero_elementos_no_libres(hash_t* hash) {
 	return contador;
 }
 
-bool necesita_redimencionar(hash_t* hash) {
+bool necesita_redimensionar(hash_t* hash) {
 	return hash->carga <= (numero_elementos_no_libres(hash) / hash->largo);
 }
 
@@ -182,7 +182,7 @@ bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 	
 	if(!claves_son_iguales(campo->clave, clave)) {
 		hash->cantidad++;
-		if(necesita_redimencionar(hash) && !redimensionar(hash)) {
+		if(necesita_redimensionar(hash) && !redimensionar(hash)) {
 			hash->cantidad--;
 			return false;	
 		}
@@ -248,10 +248,15 @@ bool hash_iter_al_final(const hash_iter_t* iter) {
 	return iter->posicion == iter->hash->largo;
 }
 
-void iterando_por_hay(hash_iter_t* iter) {
-	while(!hash_iter_al_final(iter) && iter->hash->tabla[iter->posicion]->estado != ocupado) {
-		iter->posicion++;
+void ocupando_por_hay(hash_iter_t* iterador){
+	while(!hash_iter_al_final(iterador) && iterador->hash->tabla[iterador->posicion]->estado != ocupado) {
+		iterador->posicion++;
 	}
+}
+
+void iterando_por_hay(hash_iter_t* iter) {
+	iter->posicion++;
+	ocupando_por_hay(iter);
 }
 
 // Crea iterador
@@ -259,8 +264,7 @@ hash_iter_t* hash_iter_crear(const hash_t* hash) {
 	hash_iter_t* iterador = malloc(sizeof(hash_iter_t));
 	if(iterador == NULL) return NULL;
 	iterador->hash = hash;
-	iterador->posicion = 0;
-	iterando_por_hay(iterador);
+	ocupando_por_hay(iterador);
 	return iterador;
 }
 
