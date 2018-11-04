@@ -1,9 +1,10 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define LARGO_INICIAL 5
-#define CARGA 50
+#define CARGA 43
 
 typedef void (*hash_destruir_dato_t)(void *);
 
@@ -14,7 +15,7 @@ typedef enum estado {
 } estado_t;
 
 typedef struct hash_campo {
-    const char* clave;
+    char* clave;
     void* valor;
     estado_t estado; 
 } hash_campo_t;
@@ -28,7 +29,7 @@ typedef struct hash {
 } hash_t;
 
 typedef struct hash_iter {	//no estoy seguro si estos son los atributos del iterador.
-	hash_t* hash;
+	const hash_t* hash;
 	size_t posicion;
 } hash_iter_t;
 
@@ -47,8 +48,10 @@ void hash_destruir(hash_t *hash);
 void hash_destruir(hash_t* hash) {
 	for(int i=0; i<hash->largo; i++) {
 		hash_campo_t* campo = hash->tabla[i];
-		if(hash->destruir_dato != NULL && campo->estado != libre) {
-			hash->destruir_dato(campo->valor);
+		if(campo->estado != libre) {
+			if(hash->destruir_dato != NULL) 
+				hash->destruir_dato(campo->valor);
+			free(campo->clave);
 		}
 		free(campo);
 	}
@@ -83,8 +86,13 @@ bool rellenar_tabla(hash_t* hash, size_t inicio) {
 	return true;
 }
 
+bool claves_son_iguales(char* campo_clave, const char* clave) {
+	return campo_clave != NULL && strcmp(campo_clave, clave) == 0;
+}
+
 void hasheando_por_hay(size_t* posicion, const hash_t* hash, const char* clave) {
-	while(*posicion < hash->largo && hash->tabla[*posicion]->estado != libre && hash->tabla[*posicion]->clave != clave) {
+	while(*posicion < hash->largo && hash->tabla[*posicion]->estado != libre && !claves_son_iguales(hash->tabla[*posicion]->clave, clave)
+	) {
 		*posicion += 1;
 	}
 }
@@ -114,7 +122,7 @@ size_t numero_elementos_no_libres(hash_t* hash) {
 	return contador;
 }
 
-bool necesita_redimencionar(hash_t* hash) {
+bool necesita_redimensionar(hash_t* hash) {
 	return hash->carga <= (numero_elementos_no_libres(hash) / hash->largo);
 }
 
@@ -140,10 +148,21 @@ bool redimensionar(hash_t* hash) {
 			if(!hash_guardar(hash, campo->clave, campo->valor)) {
 				return false;
 			}
+			free(campo->clave);
 		}
 		free(campo);
 	}
+	free(vieja_tabla);
 	return true;
+}
+
+void copiar(char* destino, const char* origen) {
+	int i = 0;
+	while(origen[i] != '\0') {
+		destino[i] = origen[i];
+		i++;
+	}
+	destino[i] = '\0';
 }
 
 /* Guarda un elemento en el hash, si la clave ya se encuentra en la
@@ -162,13 +181,17 @@ bool hash_guardar(hash_t* hash, const char* clave, void* dato) {
 		}  
 	}
 	hash_campo_t* campo = hash->tabla[posicion];
-	if(campo->clave != clave) {
+	
+	if(!claves_son_iguales(campo->clave, clave)) {
 		hash->cantidad++;
-		if(necesita_redimencionar(hash) && !redimensionar(hash)) {
+		if(necesita_redimensionar(hash) && !redimensionar(hash)) {
 			hash->cantidad--;
 			return false;	
 		}
-		campo->clave = clave;
+		char* copia_clave = malloc(sizeof(char)* strlen(clave) +1);
+		if(copia_clave == NULL) return false;
+		copiar(copia_clave, clave);
+		campo->clave = copia_clave;
 	}
 	if(hash->destruir_dato != NULL && campo->valor != NULL) hash->destruir_dato(campo->valor);
 	campo->valor = dato;
@@ -183,7 +206,7 @@ void* hash_obtener(const hash_t* hash, const char* clave) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hasheando_por_hay(&posicion, hash, clave);
 	hash_campo_t* campo = hash->tabla[posicion];
-	if(campo->estado == borrado || campo->clave != clave) return NULL;
+	if(campo->estado == borrado || !claves_son_iguales(campo->clave, clave)) return NULL;
 	return hash->tabla[posicion]->valor;
 }
 
@@ -194,7 +217,7 @@ bool hash_pertenece(const hash_t* hash, const char* clave) {
 	hasheando_por_hay(&posicion, hash, clave);
 	hash_campo_t* campo = hash->tabla[posicion];
 	if(campo->estado == borrado) return false;
-	return campo->clave == clave;
+	return claves_son_iguales(campo->clave, clave);
 }
 
 /* Borra un elemento del hash y devuelve el dato asociado.  Devuelve
@@ -207,10 +230,11 @@ void* hash_borrar(hash_t* hash, const char* clave) {
 	size_t posicion = funcion_hash(clave, hash->largo);
 	hasheando_por_hay(&posicion, hash, clave);
 	hash_campo_t* campo = hash->tabla[posicion];
+	void* valor = campo->valor;
 	if(campo->estado == borrado) return NULL;
 	campo->estado = borrado;
 	hash->cantidad--;
-	return campo->valor;
+	return valor;
 }
 
 /* Devuelve la cantidad de elementos del hash.
@@ -219,30 +243,48 @@ size_t hash_cantidad(const hash_t* hash) {
 	return hash->cantidad;
 }
 
-
 /* Iterador del hash */
+
+// Comprueba si terminó la iteración
+bool hash_iter_al_final(const hash_iter_t* iter) { 
+	return iter->posicion == iter->hash->largo;
+}
+
+void ocupando_por_hay(hash_iter_t* iterador){
+	while(!hash_iter_al_final(iterador) && iterador->hash->tabla[iterador->posicion]->estado != ocupado) {
+		iterador->posicion++;
+	}
+}
+
+void iterando_por_hay(hash_iter_t* iter) {
+	iter->posicion++;
+	ocupando_por_hay(iter);
+}
 
 // Crea iterador
 hash_iter_t* hash_iter_crear(const hash_t* hash) {
-	return NULL;
+	hash_iter_t* iterador = malloc(sizeof(hash_iter_t));
+	if(iterador == NULL) return NULL;
+	iterador->hash = hash;
+	iterador->posicion = 0;
+	ocupando_por_hay(iterador);
+	return iterador;
 }
 
 // Avanza iterador
 bool hash_iter_avanzar(hash_iter_t* iter) {
-	return false;
+	if(hash_iter_al_final(iter)) return false;
+	iterando_por_hay(iter);
+	return true;
 }
 
 // Devuelve clave actual, esa clave no se puede modificar ni liberar.
 const char* hash_iter_ver_actual(const hash_iter_t* iter) {
-	return NULL;
-}
-
-// Comprueba si terminó la iteración
-bool hash_iter_al_final(const hash_iter_t* iter) { 
-	return false;
+	if(hash_iter_al_final(iter)) return NULL;
+	return iter->hash->tabla[iter->posicion]->clave;
 }
 
 // Destruye iterador
 void hash_iter_destruir(hash_iter_t* iter) {
-
+	free(iter);
 }
