@@ -4,7 +4,7 @@
 #include <string.h>
 
 #define LARGO_INICIAL 5
-#define CARGA 50
+#define CARGA 43
 
 typedef void (*hash_destruir_dato_t)(void *);
 
@@ -148,9 +148,11 @@ bool redimensionar(hash_t* hash) {
 			if(!hash_guardar(hash, campo->clave, campo->valor)) {
 				return false;
 			}
+			free(campo->clave);
 		}
 		free(campo);
 	}
+	free(vieja_tabla);
 	return true;
 }
 
@@ -264,6 +266,7 @@ hash_iter_t* hash_iter_crear(const hash_t* hash) {
 	hash_iter_t* iterador = malloc(sizeof(hash_iter_t));
 	if(iterador == NULL) return NULL;
 	iterador->hash = hash;
+	iterador->posicion = 0;
 	ocupando_por_hay(iterador);
 	return iterador;
 }
